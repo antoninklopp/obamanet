@@ -51,9 +51,7 @@ def subsample(y, fps_from = 100.0, fps_to = 29.97):
 			new_y[idx, :, 1] = y[int(idx*factor), 20:]
 		else:
 			break
-	# print('Subsampled y:', new_y.shape)
 	new_y = [np.array(each) for each in new_y.tolist()]
-	# print(len(new_y))
 	return new_y
 
 def drawLips(keypoints, new_img, c = (255, 255, 255), th = 1, show = False):
@@ -88,8 +86,6 @@ def getOriginalKeypoints(kp_features_mouth, N, tilt, mean):
 #########################################################################################
 
 # Load the files
-# with open('data/audio_kp/audio_kp1467_mel.pickle', 'rb') as pkl_file:
-# 	audio_kp = pkl.load(pkl_file)
 with open('data/pca/pkp1467.pickle', 'rb') as pkl_file:
 	video_kp = pkl.load(pkl_file)
 with open('data/pca/pca1467.pickle', 'rb') as pkl_file:
@@ -100,7 +96,6 @@ with open('data/a2key_data/kp_test.pickle', 'rb') as pkl_file:
 
 # Get the data
 X, y = [], [] # Create the empty lists
-# audio = audio_kp[key_audio]
 video = video_kp['00001-000']
 
 
@@ -108,16 +103,10 @@ video = video_kp['00001-000']
 (rate, sig) = wav.read(key_audio)
 audio = logfbank(sig,rate)
 
-# if (len(audio) > len(video)):
-# 	audio = audio[0:len(video)]
-# else:
-# 	video = video[0:len(audio)]
 start = (time_delay-look_back) if (time_delay-look_back > 0) else 0
 for i in range(start, len(audio)-look_back):
 	a = np.array(audio[i:i+look_back])
-	# v = np.array(video[i+look_back-time_delay]).reshape((1, -1))
 	X.append(a)
-	# y.append(v)
 
 for i in range(start, len(video)-look_back):
 	v = np.array(video[i+look_back-time_delay]).reshape((1, -1))
@@ -140,30 +129,17 @@ y = scalery.fit_transform(y)
 
 
 X = X.reshape(shapeX)
-# y = y.reshape(shapey[0], shapey[2])
-
-# print('Shapes:', X.shape, y.shape)
-# print('X mean:', np.mean(X), 'X var:', np.var(X))
-# print('y mean:', np.mean(y), 'y var:', np.var(y))
 
 y_pred = model.predict(X)
 
 # Scale it up
 y_pred = scalery.inverse_transform(y_pred)
-# y = scalery.inverse_transform(y)
 
 y_pred = pca.inverse_transform(y_pred)
-# y = pca.inverse_transform(y)
 
 print('Upsampled number:', len(y_pred))
 
 y_pred = subsample(y_pred, 100, 30)
-
-# y = subsample(y, 100, 100)
-
-# error = np.mean(np.square(np.array(y_pred) - np.array(y)))
-
-# print('Error:', error)
 
 print('Subsampled number:', len(y_pred))
 
@@ -190,19 +166,6 @@ for idx, (x, k) in enumerate(zip(y_pred, kp)):
 	# make it pix2pix style
 	im_out = np.zeros_like(im)
 	im1 = np.hstack((im, im_out))
-	# print('Shape: ', im1.shape)
 	cv2.imwrite(outputFolder + str(idx) + '.png', im1)
 
 print('Done writing', n, 'images')
-
-# cmd = 'rm -rf input0.mp4 && rm -rf output.mp4'
-# subprocess.call(cmd ,shell=True)
-
-# cmd = 'ffmpeg -r 30 -f image2 -s 256x256 -i output_images/%d.png -vcodec libx264 -crf 25 input0.mp4 && ffmpeg -i input0.mp4 -i data/audios/00003.wav -c:v copy -c:a aac -strict experimental output.mp4 && rm -rf output_images/*.png'
-# subprocess.call(cmd ,shell=True)
-
-# cmd = 'rm -rf input0.mp4'
-# subprocess.call(cmd ,shell=True)
-
-# cmd = 'rm -rf output_images'
-# subprocess.call(cmd ,shell=True)
