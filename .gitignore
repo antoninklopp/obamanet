@@ -1,0 +1,9 @@
+*.pickle
+*.png
+*.wav
+*.h5
+*.meta
+*.index
+*.json
+*.*txt
+checkpoints/

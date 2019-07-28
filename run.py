@@ -41,14 +41,14 @@ model = load_model('checkpoints/my_model.h5')
 #########################################################################################
 
 def subsample(y, fps_from = 100.0, fps_to = 29.97):
-	factor = int(np.ceil(fps_from/fps_to))
+	factor = fps_from/fps_to
 	# Subsample the points
 	new_y = np.zeros((int(y.shape[0]/factor), 20, 2)) #(timesteps, 20) = (500, 20x2)
 	for idx in range(new_y.shape[0]):
 		if not (idx*factor > y.shape[0]-1):
 			# Get into (x, y) format
-			new_y[idx, :, 0] = y[idx*factor, 0:20]
-			new_y[idx, :, 1] = y[idx*factor, 20:]
+			new_y[idx, :, 0] = y[int(idx*factor), 0:20]
+			new_y[idx, :, 1] = y[int(idx*factor), 20:]
 		else:
 			break
 	# print('Subsampled y:', new_y.shape)
@@ -108,7 +108,6 @@ video = video_kp['00001-000']
 (rate, sig) = wav.read(key_audio)
 audio = logfbank(sig,rate)
 
-
 # if (len(audio) > len(video)):
 # 	audio = audio[0:len(video)]
 # else:
@@ -158,7 +157,7 @@ y_pred = pca.inverse_transform(y_pred)
 
 print('Upsampled number:', len(y_pred))
 
-y_pred = subsample(y_pred, 100, 34)
+y_pred = subsample(y_pred, 100, 30)
 
 # y = subsample(y, 100, 100)
 
