@@ -29,7 +29,6 @@ with open('data/pca/pkp1467.pickle', 'rb') as pkl_file:
 with open('data/pca/pca1467.pickle', 'rb') as pkl_file:
 	pca = pkl.load(pkl_file)
 
-
 # Get the data
 
 X, y = [], [] # Create the empty lists
@@ -37,14 +36,11 @@ X, y = [], [] # Create the empty lists
 keys_audio = audio_kp.keys()
 keys_video = video_kp.keys()
 keys = sorted(list(set(keys_audio).intersection(set(keys_video))))
-# print('Length of common keys:', len(keys), 'First common key:', keys[0])
-
-# X = np.array(X).reshape((-1, 26))
-# y = np.array(y).reshape((-1, 8))
 
 for key in tqdm(keys[0:n_videos]):
 	audio = audio_kp[key]
 	video = video_kp[key]
+	print(len(audio), len(video))
 	if (len(audio) > len(video)):
 		audio = audio[0:len(video)]
 	else:
@@ -89,9 +85,6 @@ val_y = y[split1:split2]
 test_X = X[split2:]
 test_y = y[split2:]
 
-
-
-
 # Initialize the model
 
 model = Sequential()
@@ -100,29 +93,19 @@ model.add(Dropout(0.25))
 model.add(Dense(8))
 model.compile(loss='mean_squared_error', optimizer='adam')
 print(model.summary())
-# model = load_model('my_model.h5')
 
 # train LSTM with validation data
-for i in tqdm(range(n_epoch)):
-	print('Epoch', (i+1), '/', n_epoch, ' - ', int(100*(i+1)/n_epoch))
-	model.fit(train_X, train_y, epochs=1, batch_size=1, 
-		verbose=1, shuffle=True, callbacks=[tbCallback], validation_data=(val_X, val_y))
-	# model.reset_states()
-	test_error = np.mean(np.square(test_y - model.predict(test_X)))
-	# model.reset_states()
-	print('Test Error: ', test_error)
+model.fit(train_X, train_y, epochs=1, batch_size=1, 
+	verbose=1, shuffle=True, callbacks=[tbCallback], validation_data=(val_X, val_y))
+# model.reset_states()
+test_error = np.mean(np.square(test_y - model.predict(test_X)))
+# model.reset_states()
+print('Test Error: ', test_error)
 
 # Save the model
 model.save('my_model.h5')
 model.save_weights('my_model_weights.h5')
 print('Saved Model.')
-
-
-
-# X, num = audioToPrediction('audios/' + key_audio + '.wav')
-# y = model.predict(X, batch_size=n_batch)
-# y = y.reshape(y.shape[0]*y.shape[1], y.shape[2]) 
-# print('y:', y[0:num].shape)
 
 
 

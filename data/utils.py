@@ -33,6 +33,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 import gc
 import time
+import random
 
 predictor_path = 'shape_predictor_68_face_landmarks.dat'
 
@@ -81,18 +82,19 @@ def drawLips(keypoints, new_img, c = (255, 255, 255), th = 1, show = False):
 
 	keypoints = np.float32(keypoints)
 
-	for i in range(48, 59):
-		cv2.line(new_img, tuple(keypoints[i]), tuple(keypoints[i+1]), color=c, thickness=th)
-	cv2.line(new_img, tuple(keypoints[48]), tuple(keypoints[59]), color=c, thickness=th)
-	cv2.line(new_img, tuple(keypoints[48]), tuple(keypoints[60]), color=c, thickness=th)
-	cv2.line(new_img, tuple(keypoints[54]), tuple(keypoints[64]), color=c, thickness=th)
-	cv2.line(new_img, tuple(keypoints[67]), tuple(keypoints[60]), color=c, thickness=th)
-	for i in range(60, 67):
-		cv2.line(new_img, tuple(keypoints[i]), tuple(keypoints[i+1]), color=c, thickness=th)
+	if len(keypoints) >= 48:
+		for i in range(48, 59):
+				cv2.line(new_img, tuple(keypoints[i]), tuple(keypoints[i+1]), color=c, thickness=th)
+		cv2.line(new_img, tuple(keypoints[48]), tuple(keypoints[59]), color=c, thickness=th)
+		cv2.line(new_img, tuple(keypoints[48]), tuple(keypoints[60]), color=c, thickness=th)
+		cv2.line(new_img, tuple(keypoints[54]), tuple(keypoints[64]), color=c, thickness=th)
+		cv2.line(new_img, tuple(keypoints[67]), tuple(keypoints[60]), color=c, thickness=th)
+		for i in range(60, 67):
+			cv2.line(new_img, tuple(keypoints[i]), tuple(keypoints[i+1]), color=c, thickness=th)
 
-	if (show == True):
-		cv2.imshow('lol', new_img)
-		cv2.waitKey(10000)
+		if (show == True):
+			cv2.imwrite('lips/' + str(random.randint(1, 1000000)) + ".jpeg", new_img)
+			cv2.waitKey(10000)
 
 def getKeypointFeatures(keypoints):
 	# Mean Normalize the keypoints wrt the center of the mouth

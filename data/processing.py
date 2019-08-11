@@ -8,7 +8,7 @@ parser.add_argument("-trim", "--trim", type=bool, default=False)
 parser.add_argument("-extract_images", "--extract_images", type=bool, default=False)
 parser.add_argument("-extract_audio", "--extract_audio", type=bool, default=False)
 parser.add_argument("-extract_image_kp", "--extract_image_kp", type=bool, default=False)
-parser.add_argument("-extract_pca", "--extract_pca", type=bool, default=False)
+parser.add_argument("-extract_pca", "--extract_pca", type=bool, default=True)
 parser.add_argument("-extract_audio_kp", "--extract_audio_kp", type=bool, default=False)
 
 if __name__ == '__main__':
@@ -25,7 +25,7 @@ if __name__ == '__main__':
 			# Create directory
 			subprocess.call('mkdir -p ' + outputFolder, shell=True)
 
-		for i in range(2, 21):
+		for i in range(1, len(glob(inputFolder + "*.mp4"))):
 			num = str(i).rjust(5, '0')
 			captions_filename = 'captions/'+ num +'.en.vtt'
 			inputfilename = inputFolder + num + '.mp4 '
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 				end = caption.end
 				t = int(round(get_sec(end) - get_sec(ss)))
 				print('index: ', idx, 'Text: ', caption.text, 'Time: ', t)
-				cmd = 'ffmpeg -i ' + inputfilename + '-vf scale='+ str(video_width) + ':256 ' + '-ss ' + str(ss) + ' -t ' + str(t) + ' -acodec copy ' + outputfilename
+				cmd = 'ffmpeg -n -i ' + inputfilename + '-vf scale='+ str(video_width) + ':256 ' + '-ss ' + str(ss) + ' -t ' + str(t) + ' -acodec copy ' + outputfilename
 				subprocess.call(cmd, shell=True)
 
 	if (args.extract_images):
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 			# Create directory
 			subprocess.call('mkdir -p ' + outputFolder, shell=True)
 
-		filelist = sorted(glob(inputFolder+'/*.mp4'))
+		filelist = sorted(glob(inputFolder+'*.mp4'))
 
 		print('Length of filelist: ', len(filelist))
 
@@ -63,20 +63,22 @@ if __name__ == '__main__':
 				# Create directory
 				subprocess.call('mkdir -p ' + outputFolder+num, shell=True)
 
-			# Create the images
-			cmd = 'ffmpeg -i ' + filename + ' -vf scale=-1:256 '+ outputFolder + num + '/$filename%05d' + '.bmp'
-			subprocess.call(cmd, shell=True)
+			try:
+				# Create the images
+				cmd = 'ffmpeg -n -i ' + filename + ' -vf scale=-1:256 '+ outputFolder + num + '/$filename%05d' + '.bmp'
+				subprocess.call(cmd, shell=True)
 
-			# Cropping
-			imglist = sorted(glob( outputFolder + num + '/*.bmp'))
+				# Cropping
+				imglist = sorted(glob( outputFolder + num + '/*.bmp'))
 
-			for i in range(len(imglist)):
-				img = cv2.imread(imglist[i])
-				x = int(np.floor((img.shape[1]-256)/2))
-				crop_img = img[0:256, x:x+256]
-				cv2.imwrite( imglist[i][0:-len('.bmp')] + '.jpeg', crop_img)
+				for i in range(len(imglist)):
+					img = cv2.imread(imglist[i])
+					x = int(np.floor((img.shape[1]-256)/2))
+					crop_img = img[0:256, x:x+256]
 
-			subprocess.call('rm -rf '+ outputFolder + num + '/*.bmp', shell=True)
+				subprocess.call('rm -rf '+ outputFolder + num + '/*.bmp', shell=True)
+			except e:
+				print("error")
 
 	if (args.extract_audio):
 
@@ -90,8 +92,11 @@ if __name__ == '__main__':
 		filelist = sorted(glob(inputFolder+'/*.mp4'))
 
 		for file in filelist:
-			cmd = 'ffmpeg -i ' + file + ' -ab 160k -ac 1 -ar 16000 -vn ' + outputFolder + file[len(inputFolder): -len('.mp4')] + '.wav'
-			subprocess.call(cmd, shell=True)
+			try:
+				cmd = 'ffmpeg -n  -i ' + file + ' -ab 160k -ac 1 -ar 16000 -vn ' + outputFolder + file[len(inputFolder): -len('.mp4')] + '.wav'
+				subprocess.call(cmd, shell=True)
+			except e:
+				print("error")
 
 	if (args.extract_image_kp):
 
@@ -202,7 +207,7 @@ if __name__ == '__main__':
 
 		inputFolder = 'image_kp_raw/'
 		outputFolder = 'pca/'
-		numOfFiles = 1467 # First 20 videos
+		numOfFiles = 2748 # First 20 videos
 		new_list = []
 
 		filename = inputFolder + 'kp' + str(numOfFiles) + '.pickle'
@@ -219,69 +224,80 @@ if __name__ == '__main__':
 			print('Input keypoints not found')
 			sys.exit(0)
 
-		print('Unwrapping all items from the big list')
+		if not (os.path.exists(outputFolder + 'pca' + str(numOfFiles) + '.pickle')):
 
-		for key in tqdm(sorted(big_list.keys())):
-			for frame_kp in big_list[key]:
-				kp_mouth = frame_kp[0]
-				x = kp_mouth[:, 0].reshape((1, -1))
-				y = kp_mouth[:, 1].reshape((1, -1))
-				X = np.hstack((x, y)).reshape((-1)).tolist()
-				new_list.append(X)
+			print('Unwrapping all items from the big list')
 
-		X = np.array(new_list)
+			for key in tqdm(sorted(big_list.keys())):
+				for frame_kp in big_list[key]:
+					kp_mouth = frame_kp[0]
+					x = kp_mouth[:, 0].reshape((1, -1))
+					y = kp_mouth[:, 1].reshape((1, -1))
+					X = np.hstack((x, y)).reshape((-1)).tolist()
+					new_list.append(X)
 
-		pca = PCA(n_components=8)
-		pca.fit(X)
-		with open(outputFolder + 'pca' + str(numOfFiles) + '.pickle', 'wb') as file:
-			pkl.dump(pca, file)
-	
-		with open(outputFolder + 'explanation' + str(numOfFiles) + '.pickle', 'wb') as file:
-			pkl.dump(pca.explained_variance_ratio_, file)
+			X = np.array(new_list)
 
-		print('Explanation for each dimension:', pca.explained_variance_ratio_)
-		print('Total variance explained:', 100*sum(pca.explained_variance_ratio_))
-		print('')
-		print('Upsampling...')
+			pca = PCA(n_components=8)
+			pca.fit(X)
+			with open(outputFolder + 'pca' + str(numOfFiles) + '.pickle', 'wb') as file:
+				pkl.dump(pca, file)
+		
+			with open(outputFolder + 'explanation' + str(numOfFiles) + '.pickle', 'wb') as file:
+				pkl.dump(pca.explained_variance_ratio_, file)
+
+			print('Explanation for each dimension:', pca.explained_variance_ratio_)
+			print('Total variance explained:', 100*sum(pca.explained_variance_ratio_))
+			print('')
+			print('Upsampling...')
+
+		else:
+			with open(outputFolder + 'pca' + str(numOfFiles) + '.pickle', "rb") as output_file:
+				pca = pkl.load(output_file) 
+
 
 		# Upsample the lip keypoints
 		upsampled_kp = {}
 		for key in tqdm(sorted(big_list.keys())):
-			# print('Key:', key)
-			nFrames = len(big_list[key])
-			factor = int(np.ceil(100/29.97))
-			# Create the matrix
-			new_unit_kp = np.zeros((int(factor*nFrames), big_list[key][0][0].shape[0], big_list[key][0][0].shape[1]))
-			new_kp = np.zeros((int(factor*nFrames), big_list[key][0][-1].shape[0], big_list[key][0][-1].shape[1]))
+			try:
+				# print('Key:', key)
+				nFrames = len(big_list[key])
+				factor = 100/29.97
+				# Create the matrix
+				new_unit_kp = np.zeros((int(factor*nFrames), big_list[key][0][0].shape[0], big_list[key][0][0].shape[1]))
+				new_kp = np.zeros((int(factor*nFrames), big_list[key][0][-1].shape[0], big_list[key][0][-1].shape[1]))
 
-			# print('Shape of new_unit_kp:', new_unit_kp.shape, 'new_kp:', new_kp.shape)
+				# print('Shape of new_unit_kp:', new_unit_kp.shape, 'new_kp:', new_kp.shape)
 
-			for idx, frame in enumerate(big_list[key]):
-				# Create two lists, one with original keypoints, other with unit keypoints
-				new_kp[(idx*(factor)), :, :] = frame[-1]
-				new_unit_kp[(idx*(factor)), :, :] = frame[0]
+				for idx, frame in enumerate(big_list[key]):
+					# Create two lists, one with original keypoints, other with unit keypoints
+					new_kp[int((idx*(factor))), :, :] = frame[-1]
+					new_unit_kp[int((idx*(factor))), :, :] = frame[0]
 
-				if (idx > 0):
-					start = (idx-1)*factor + 1
-					end = idx*factor
-					for j in range(start, end):
-						new_kp[j, :, :] = new_kp[start-1, :, :] + ((new_kp[end, :, :] - new_kp[start-1, :, :])*(np.float(j+1-start)/np.float(factor)))
-						# print('')
-						l = getKeypointFeatures(new_kp[j, :, :])
-						# print('')
-						new_unit_kp[j, :, :] = l[0][48:68, :]
+					if (idx > 0):
+						start = int((idx-1)*factor + 1)
+						end = int(idx*factor)
+						for j in range(start, end):
+							new_kp[j, :, :] = new_kp[start-1, :, :] + ((new_kp[end, :, :] - new_kp[start-1, :, :])*(np.float(j+1-start)/np.float(factor)))
+							# print('')
+							l = getKeypointFeatures(new_kp[j, :, :])
+							# print('')
+							new_unit_kp[j, :, :] = l[0][48:68, :]
+			except:
+				print("error")
 			
 			upsampled_kp[key] = new_unit_kp
 
 		# Use PCA to de-correlate the points
 		d = {}
 		keys = sorted(upsampled_kp.keys())
-		for key in tqdm(keys):
+		for i, key in enumerate(tqdm(keys)):
 			x = upsampled_kp[key][:, :, 0]
 			y = upsampled_kp[key][:, :, 1]
 			X = np.hstack((x, y))
 			X_trans = pca.transform(X)
 			d[key] = X_trans
+			print(X_trans)
 
 		with open(outputFolder + 'pkp' + str(numOfFiles) + '.pickle', 'wb') as file:
 			pkl.dump(d, file)

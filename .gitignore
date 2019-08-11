@@ -7,3 +7,6 @@
 *.json
 *.*txt
 checkpoints/
+*.mp4
+logs/
+data/
