@@ -36,7 +36,7 @@ subprocess.call(cmd ,shell=True)
 
 #########################################################################################
 
-model = load_model('checkpoints/my_model.h5')
+model = load_model('my_model.h5')
 
 #########################################################################################
 
@@ -86,9 +86,9 @@ def getOriginalKeypoints(kp_features_mouth, N, tilt, mean):
 #########################################################################################
 
 # Load the files
-with open('data/pca/pkp1467.pickle', 'rb') as pkl_file:
+with open('data/pca/pkp2748.pickle', 'rb') as pkl_file:
 	video_kp = pkl.load(pkl_file)
-with open('data/pca/pca1467.pickle', 'rb') as pkl_file:
+with open('data/pca/pca2748.pickle', 'rb') as pkl_file:
 	pca = pkl.load(pkl_file)
 # Get the original keypoints file
 with open('data/a2key_data/kp_test.pickle', 'rb') as pkl_file:
@@ -96,7 +96,7 @@ with open('data/a2key_data/kp_test.pickle', 'rb') as pkl_file:
 
 # Get the data
 X, y = [], [] # Create the empty lists
-video = video_kp['00001-000']
+video = video_kp['00002-000']
 
 
 # Get audio features
