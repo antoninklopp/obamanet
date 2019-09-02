@@ -10,16 +10,85 @@ from tqdm import tqdm
 import pickle as pkl
 from keras.callbacks import TensorBoard
 from time import time
+import tensorflow as tf
 
 #########################################################################################
 
-time_delay = 20 #0
+time_delay = 50 #0
 look_back = 50
 n_epoch = 50
-n_videos = 200
+n_videos = 50
 tbCallback = TensorBoard(log_dir="logs/{}".format(time())) # TensorBoard(log_dir='./Graph', histogram_freq=0, batch_size=n_batch, write_graph=True, write_images=True)
 
 #########################################################################################
+
+class Arguments:
+
+	def __init__(self, keep_prob):
+		self.keep_prob = keep_prob
+		self.num_layers = 0
+		self.batch_size = 0
+		self.seq_length = 0
+		self.rnn_size = 0
+		self.grad_clip = 0
+
+class Model:
+
+	dimin = 20
+	dimout = 20
+
+	def standardL2Model(self, infer=False):
+
+		args = Arguments(keep_prob=False)
+		args.keep_prob = 0.5
+		
+		args.batch_size = 1
+
+		args.seq_length = 25
+		args.rnn_size = 20
+
+		args.grad_clip = True
+	
+		cell_fn = tf.nn.rnn_cell.LSTMCell
+		cell = cell_fn(args.rnn_size, state_is_tuple=True)
+	
+		if infer == False and args.keep_prob < 1: # training mode
+		  cell0 = tf.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob = args.keep_prob)
+		  cell1 = tf.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob = args.keep_prob, output_keep_prob = args.keep_prob)
+		  self.network = tf.nn.rnn_cell.MultiRNNCell([cell0] * (args.num_layers -1) + [cell1], state_is_tuple=True)
+		else:
+		  self.network = tf.nn.rnn_cell.MultiRNNCell([cell] * args.num_layers, state_is_tuple=True)
+	
+	
+		self.input_data = tf.placeholder(dtype=tf.float32, shape=[None, args.seq_length, self.dimin])
+		self.target_data = tf.placeholder(dtype=tf.float32, shape=[None, args.seq_length, self.dimout])
+		self.initial_state = self.network.zero_state(batch_size=args.batch_size, dtype=tf.float32)
+	
+		with tf.variable_scope('rnnlm'):
+		  output_w = tf.get_variable("output_w", [args.rnn_size, self.dimout])
+		  output_b = tf.get_variable("output_b", [self.dimout])
+	
+		inputs = tf.split(self.input_data, 1, args.seq_length)
+		inputs = [tf.squeeze(input_, [1]) for input_ in inputs]
+	
+		outputs, states = tf.nn.seq2seq.rnn_decoder(inputs, self.initial_state, self.network, loop_function=None, scope='rnnlm')
+	
+		output = tf.reshape(tf.concat(1, outputs), [-1, args.rnn_size])
+		output = tf.nn.xw_plus_b(output, output_w, output_b)
+		self.final_state = states
+		self.output = output
+	
+		flat_target_data = tf.reshape(self.target_data,[-1, self.dimout])
+			
+		lossfunc = tf.reduce_sum(tf.squared_difference(flat_target_data, output))
+		#lossfunc = tf.reduce_sum(tf.abs(flat_target_data - output))
+		self.cost = lossfunc / (args.batch_size * args.seq_length * self.dimout)
+	
+		self.lr = tf.Variable(0.0, trainable=False)
+		tvars = tf.trainable_variables()
+		grads, _ = tf.clip_by_global_norm(tf.gradients(self.cost, tvars), args.grad_clip)
+		optimizer = tf.train.AdamOptimizer(self.lr)
+		self.train_op = optimizer.apply_gradients(zip(grads, tvars))
 
 def get_data():
 	# Load the files
@@ -39,9 +108,10 @@ def get_data():
 	keys = sorted(list(set(keys_audio).intersection(set(keys_video))))
 
 	for key in tqdm(keys[0:n_videos]):
+		print(key)
 		audio = audio_kp[key]
 		video = video_kp[key]
-		print(len(audio), len(video))
+		print(len(audio))
 		if (len(audio) - len(video) > 1):
 			continue
 		if (len(audio) > len(video)):
@@ -94,10 +164,7 @@ if __name__ == "__main__":
 	train_X, train_y, val_X, val_y, test_X, test_y = get_data()
 
 	# Initialize the model
-	model = Sequential()
-	model.add(LSTM(25, input_shape=(look_back, 26)))
-	model.add(Dense(8))
-	model.compile(optimizer='sgd', loss='mean_squared_error', metrics=['accuracy'])
+	model = Model().standardL2Model()
 	print(model.summary())
 
 	# train LSTM with validation data
